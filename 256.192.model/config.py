@@ -10,7 +10,7 @@ def add_pypath(path):
 class Config:
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     this_dir_name = cur_dir.split('/')[-1]
-    root_dir = os.path.join(cur_dir, '..')
+    coco_root_dir = os.path.join(cur_dir, '..', '..')
 
     model = 'CPN50'
 
@@ -22,8 +22,9 @@ class Config:
     weight_decay = 1e-5
 
     num_class = 17
-    img_path = os.path.join(root_dir, 'data', 'COCO2017', 'train2017')
-    symmetry = [(1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (11, 12), (13, 14), (15, 16)]
+    img_path = os.path.join(coco_root_dir, 'COCO-Dataset', 'train2017')
+    symmetry = [(1, 2), (3, 4), (5, 6), (7, 8), (9, 10), (11, 12), (13, 14),
+        (15, 16)]
     bbox_extend_factor = (0.1, 0.15) # x, y
 
     # data augmentation setting
@@ -40,8 +41,9 @@ class Config:
     gk9 = (9, 9)
     gk7 = (7, 7)
 
-    gt_path = os.path.join(root_dir, 'data', 'COCO2017', 'annotations', 'COCO_2017_train.json')
+    gt_path = os.path.join(coco_root_dir, 'COCO-Dataset', 'annotations',
+        'COCO_2017_train.json')
 
 cfg = Config()
-add_pypath(cfg.root_dir)
+add_pypath(cfg.coco_root_dir)
 

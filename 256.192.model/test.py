@@ -1,5 +1,7 @@
 import os
 import sys
+sys.path.insert(0, '..')
+
 import argparse
 import time
 import matplotlib.pyplot as plt
@@ -25,6 +27,7 @@ from utils.imutils import im_to_numpy, im_to_torch
 from networks import network 
 from dataloader.mscocoMulti import MscocoMulti
 from tqdm import tqdm
+
 
 def main(args):
     # create model

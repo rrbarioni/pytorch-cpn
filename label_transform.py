@@ -1,12 +1,12 @@
 import sys
-sys.path.insert(0, 'cocoapi/PythonAPI')
+# sys.path.insert(0, 'cocoapi/PythonAPI')
 import os
 from pycocotools.coco import COCO
 from tqdm import tqdm
 import json
 from utils.osutils import isfile
 
-anno_root = 'data/COCO2017/annotations/'
+anno_root = '../COCO-Dataset/annotations/'
 
 def trans_anno(ori_file, target_file, is_val):
 	file_exist=False
