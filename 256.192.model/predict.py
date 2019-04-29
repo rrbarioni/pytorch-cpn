@@ -24,15 +24,18 @@ colors = [
 keypoints_pairs = [(0,1), (0,2), (1,3), (2,4), (0,5), (0,6), (5,7), (6,8),
     (7,9), (8,10), (0,11), (0,12), (11,13), (12,14), (13,15), (14,16)]
 
-checkpoint_file = os.path.join('checkpoint', 'CPN50_256x192.pth.tar')
-checkpoint = torch.load(checkpoint_file)
 
-model = network.__dict__[cfg.model](cfg.output_shape, cfg.num_class,
-    pretrained=False)
-model = torch.nn.DataParallel(model).cuda()
-model.load_state_dict(checkpoint['state_dict'])
-model.eval()
+def load_model():
+    checkpoint_file = os.path.join('checkpoint', 'CPN50_256x192.pth.tar')
+    checkpoint = torch.load(checkpoint_file)
 
+    model = network.__dict__[cfg.model](cfg.output_shape, cfg.num_class,
+        pretrained=False)
+    model = torch.nn.DataParallel(model).cuda()
+    model.load_state_dict(checkpoint['state_dict'])
+    model.eval()
+
+    return model
 
 def predict(model, input_image):
     image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
@@ -113,20 +116,33 @@ def canvas_with_skeleton(canvas, keypoints):
 
     return canvas
 
-cap = cv2.VideoCapture(0)
+# model = load_model()
 
+cap = cv2.VideoCapture(0)
 while(True):
-    _, img = cap.read()
     
+    _, img = cap.read()
+
     t = time.time()
     keypoints = predict(model, img)
     t = time.time() - t
-
+    
     canvas = canvas_with_skeleton(img, keypoints)
     canvas = cv2.resize(canvas, None, fx=2, fy=2)
     cv2.putText(canvas, 'fps: %s' % (1/t), (60, 60), cv2.FONT_HERSHEY_SIMPLEX,
         2, 255)
     cv2.imshow('frame', canvas)
+    
+    '''
+    t = time.time()
+    _, img = cap.read()
+    t = time.time() - t
+
+    cv2.putText(img, 'fps: %s' % (1/(t + 0.00000001)), (60, 60), cv2.FONT_HERSHEY_SIMPLEX,
+        2, 255)
+    cv2.imshow('frame', img)
+    '''
+
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
