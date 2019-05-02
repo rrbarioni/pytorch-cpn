@@ -8,22 +8,20 @@ import cv2
 import numpy as np
 
 import torch
+import summary
 
 from test_config import cfg
 from networks import network
 from utils.imutils import *
 from utils.transforms import *
 
-colors = [
-    [255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0],
-    [85, 255, 0], [0, 255, 0], [0, 255, 85], [0, 255, 170], [0, 255, 255],
-    [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255], [170, 0, 255],
-    [255, 0, 255], [255, 0, 170], [255, 0, 85]
-]
+colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0],
+    [170, 255, 0], [85, 255, 0], [0, 255, 0], [0, 255, 85], [0, 255, 170],
+    [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255],
+    [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
 
 keypoints_pairs = [(0,1), (0,2), (1,3), (2,4), (0,5), (0,6), (5,7), (6,8),
     (7,9), (8,10), (0,11), (0,12), (11,13), (12,14), (13,15), (14,16)]
-
 
 def load_model():
     checkpoint_file = os.path.join('checkpoint', 'CPN50_256x192.pth.tar')
@@ -36,6 +34,9 @@ def load_model():
     model.eval()
 
     return model
+
+model = load_model()
+summary.summary(model, (3,) + cfg.data_shape)
 
 def predict(model, input_image):
     image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
@@ -116,8 +117,6 @@ def canvas_with_skeleton(canvas, keypoints):
 
     return canvas
 
-# model = load_model()
-
 cap = cv2.VideoCapture(0)
 while(True):
     
@@ -136,10 +135,11 @@ while(True):
     '''
     t = time.time()
     _, img = cap.read()
+    img = cv2.resize(img, None, fx=2, fy=2)
     t = time.time() - t
 
-    cv2.putText(img, 'fps: %s' % (1/(t + 0.00000001)), (60, 60), cv2.FONT_HERSHEY_SIMPLEX,
-        2, 255)
+    cv2.putText(img, 'fps: %s' % (1/(t + 0.00000001)), (60, 60),
+        cv2.FONT_HERSHEY_SIMPLEX, 2, 255)
     cv2.imshow('frame', img)
     '''
 
