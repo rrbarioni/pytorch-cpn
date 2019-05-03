@@ -8,7 +8,6 @@ import cv2
 import numpy as np
 
 import torch
-import summary
 
 from test_config import cfg
 from networks import network
@@ -34,9 +33,6 @@ def load_model():
     model.eval()
 
     return model
-
-model = load_model()
-summary.summary(model, (3,) + cfg.data_shape)
 
 def predict(model, input_image):
     image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
@@ -116,6 +112,8 @@ def canvas_with_skeleton(canvas, keypoints):
         cv2.circle(canvas, keypoints[i], 4, colors[i], thickness=-1)
 
     return canvas
+
+model = load_model()
 
 cap = cv2.VideoCapture(0)
 while(True):
