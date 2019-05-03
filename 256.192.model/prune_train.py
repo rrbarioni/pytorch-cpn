@@ -330,6 +330,7 @@ class PrunningFineTuner_CPN:
         # switch to train mode
         self.model.train()
 
+        print('enumerate(self.train_loader):')
         for i, (inputs, targets, valid, meta) in enumerate(self.train_loader):
             input_var = torch.autograd.Variable(inputs.cuda())
 
@@ -444,6 +445,12 @@ class PrunningFineTuner_CPN:
         self.train()
         torch.save(self.model.state_dict(), 'model_prunned')
 
+def main(args):
+    args.resume = os.path.join('checkpoint', 'CPN50_256x192.pth.tar')
+
+    fine_tuner = PrunningFineTuner_CPN(args)
+    fine_tuner.prune()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch CPN Prune-Training')
     parser.add_argument('-j', '--workers', default=12, type=int, metavar='N',
@@ -459,8 +466,4 @@ if __name__ == '__main__':
     # parser.add_argument('--resume', default='', type=str, metavar='PATH',
     #                     help='path to latest checkpoint')
 
-    args = parser.parse_args()
-    args.resume = os.path.join('checkpoint', 'CPN50_256x192.pth.tar')
-
-    fine_tuner = PrunningFineTuner_CPN(args)
-    fine_tuner.prune()
+    main(parser.parse_args())
