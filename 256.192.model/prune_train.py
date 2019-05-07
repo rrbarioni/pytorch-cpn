@@ -5,6 +5,7 @@ import time
 from operator import itemgetter
 from heapq import nsmallest
 sys.path.insert(0, '..')
+os.environ['CUDA_VISIBLE_DEVICES']='0'
 
 import cv2
 import numpy as np
@@ -181,7 +182,11 @@ class FilterPrunner:
         activation_index = 0
         # for layer, (name, module) in \
         #   enumerate(self.model.features._modules.items()):
-        for layer, module in get_modules(self.model):
+        # for layer, module in get_modules(self.model):
+        for layer, (name, module) in \
+           enumerate(self.model._modules.items()):
+            print(x.shape)
+            print(module)
             x = module(x)
             if isinstance(module, torch.nn.modules.conv.Conv2d):
                 x.register_hook(self.compute_rank)
@@ -330,7 +335,6 @@ class PrunningFineTuner_CPN:
         # switch to train mode
         self.model.train()
 
-        print('enumerate(self.train_loader):')
         for i, (inputs, targets, valid, meta) in enumerate(self.train_loader):
             input_var = torch.autograd.Variable(inputs.cuda())
 
@@ -375,7 +379,7 @@ class PrunningFineTuner_CPN:
             if not rank_filters:
                 self.optimizer.step()
 
-            if(i % 100 == 0 and i != 0):
+            if(i % 1 == 0 and i != 0):
                 print('iteration %s | loss: %s, global loss: %s, \
                     refine loss: %s, avg loss: %s' % \
                     (i, loss.data.item(), global_loss_record, 
@@ -461,8 +465,8 @@ if __name__ == '__main__':
                         help='number of total epochs to run (default: 32)')
     parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                         help='manual epoch number (useful on restarts)')
-    parser.add_argument('-c', '--checkpoint', default='checkpoint', type=str, metavar='PATH',
-                        help='path to save checkpoint (default: checkpoint)')
+    parser.add_argument('-c', '--checkpoint', default='checkpoint', type=str,
+        metavar='PATH', help='path to save checkpoint (default: checkpoint)')
     # parser.add_argument('--resume', default='', type=str, metavar='PATH',
     #                     help='path to latest checkpoint')
 

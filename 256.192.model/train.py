@@ -1,6 +1,7 @@
 import os
 import sys
 sys.path.insert(0, '..')
+os.environ['CUDA_VISIBLE_DEVICES']='0'
 
 import argparse
 import time
@@ -106,7 +107,7 @@ def train(train_loader, model, criterions, optimizer):
 
     for i, (inputs, targets, valid, meta) in enumerate(train_loader):     
         input_var = torch.autograd.Variable(inputs.cuda())
-
+ 
         target15, target11, target9, target7 = targets
         refine_target_var = torch.autograd.Variable(target7.cuda(async=True))
         valid_var = torch.autograd.Variable(valid.cuda(async=True))
@@ -140,7 +141,7 @@ def train(train_loader, model, criterions, optimizer):
         loss.backward()
         optimizer.step()
 
-        if(i%100==0 and i!=0):
+        if(i%1==0 and i!=0):
             print('iteration {} | loss: {}, global loss: {}, refine loss: {}, avg loss: {}'
                 .format(i, loss.data.item(), global_loss_record, 
                     refine_loss_record, losses.avg)) 
