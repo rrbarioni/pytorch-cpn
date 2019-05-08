@@ -8,14 +8,13 @@ class CPN(nn.Module):
     def __init__(self, output_shape, num_class):
         super(CPN, self).__init__()
         self.channel_settings = [2048, 1024, 512, 256]
-        self.output_shape = output_shape
-        self.num_class = num_class
         
         # resnet
         self.resnet_inplanes = 64
         self.resnet_layers = [3, 4, 6, 3]
         self.resnet_planes = [64, 128, 256, 512]
         self.resnet_strides = [1, 2, 2, 2]
+        self.resnet_block_expansion = 4
 
         self.resnet_conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2,
             padding=3, bias=False)
@@ -23,8 +22,6 @@ class CPN(nn.Module):
         self.resnet_relu = nn.ReLU(inplace=True)
         self.resnet_maxpool = nn.MaxPool2d(kernel_size=3, stride=2,
             padding=1)
-
-        self.resnet_block_expansion = 4
 
         for i in range(len(self.resnet_layers)):
             inplanes = self.resnet_inplanes
@@ -50,7 +47,7 @@ class CPN(nn.Module):
             exec('self.resnet_layer%s_0_downsample_1 = nn.BatchNorm2d( \
                 planes * block_expansion)' % (i+1))
 
-            exec('self.inplanes = planes * block_expansion')
+            self.inplanes = planes * block_expansion
             for b in range(1, blocks):
                 exec('self.resnet_layer%s_%s_conv1 = nn.Conv2d(inplanes, \
                     planes, kernel_size=1, bias=False)' % (i+1, b))
@@ -68,10 +65,13 @@ class CPN(nn.Module):
                     (i+1, b))
 
         # global_net
+        self.global_net_output_shape = output_shape
+        self.global_net_num_class = num_class
+
         for i in range(len(self.channel_settings)):
             input_size = self.channel_settings[i]
-            output_shape = self.output_shape
-            num_class = self.num_class
+            output_shape = self.global_net_output_shape
+            num_class = self.global_net_num_class
             exec('self.global_net_laterals_%s_0 = nn.Conv2d(input_size, 256, \
                 kernel_size=1, stride=1, bias=False)' % i)
             exec('self.global_net_laterals_%s_1 = nn.BatchNorm2d(256)' % i)
@@ -103,7 +103,67 @@ class CPN(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
+    
+        # refine_net
+        self.refine_net_lateral_channel = self.channel_settings[-1]
+        self.refine_net_out_shape = output_shape
+        self.refine_net_num_class = num_class
+        self.refine_net_num_cascade = 4
 
+        for i in range(self.refine_net_num_cascade):
+            input_channel = self.refine_net_lateral_channel
+            num = self.refine_net_num_cascade-i-1
+            output_shape = self.refine_net_out_shape
+            for j in range(num):
+                inplanes = input_channel
+                planes = 128
+                stride = 1
+                exec('self.refine_net_cascade_%s_%s_conv1 = nn.Conv2d( \
+                    inplanes, planes, kernel_size=1, bias=False)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_bn1 = nn.BatchNorm2d( \
+                    planes)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_conv2 = nn.Conv2d(planes, \
+                    planes, kernel_size=3, stride=stride, padding=1, \
+                    bias=False)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_bn2 = nn.BatchNorm2d( \
+                    planes)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_conv3 = nn.Conv2d(planes, \
+                    planes * 2, kernel_size=1, bias=False)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_bn3 = nn.BatchNorm2d( \
+                    planes)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_relu = nn.ReLU( \
+                    inplace=True)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_downsample_0 = nn.Conv2d( \
+                    inplanes, planes * 2, kernel_size=1, stride=stride, \
+                    bias=False)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_downsample_1 = \
+                    nn.BatchNorm2d(planes * 2)' % (i, j))
+            exec('self.refine_net_cascade_%s_%s = nn.Upsample( \
+                size=output_shape, mode=\'bilinear\', align_corners=True)' % \
+                (i, num))
+
+        input_channel = 4 * self.refine_net_lateral_channel
+        num_class = self.refine_net_num_class
+        inplanes = input_channel
+        planes = 128
+        stride = 1
+        self.refine_net_final_predict_0_conv1 = nn.Conv2d(inplanes, planes,
+            kernel_size=1, bias=False)
+        self.refine_net_final_predict_0_bn1 = nn.BatchNorm2d(planes)
+        self.refine_net_final_predict_0_conv2 = nn.Conv2d(planes, planes,
+            kernel_size=3, stride=stride, padding=1, bias=False)
+        self.refine_net_final_predict_0_bn2 = nn.BatchNorm2d(planes)
+        self.refine_net_final_predict_0_conv3 = nn.Conv2d(planes, planes * 2,
+            kernel_size=1, bias=False)
+        self.refine_net_final_predict_0_bn3 = nn.BatchNorm2d(planes * 2)
+        self.refine_net_final_predict_0_relu = nn.ReLU(inplace=True)
+        self.refine_net_final_predict_0_downsample_0 = nn.Conv2d(inplanes,
+            planes * 2, kernel_size=1, stride=stride, bias=False)
+        self.refine_net_final_predict_0_downsample_1 = nn.BatchNorm2d(
+            planes * 2)
+        self.refine_net_final_predict_1 = nn.Conv2d(256, num_class,
+            kernel_size=3, stride=1, padding=1, bias=False)
+        self.refine_net_final_predict_2 = nn.BatchNorm2d(num_class)
 
     def forward(self, x):
         # resnet
@@ -139,6 +199,7 @@ class CPN(nn.Module):
                 exec('out = self.resnet_layer%s_%s_relu(out)' % (i+1, b))
                 x = out
 
+        # global_net
         global_fms, global_outs = [], []
         for i in range(len(self.channel_settings)):
             if i == 0:
@@ -164,5 +225,37 @@ class CPN(nn.Module):
             exec('feature = self.global_net_predict_%s_5(feature)' % i)
             global_outs.append(feature)
         x = global_fms
+
+        # refine_net
+        refine_fms = []
+        for i in range(self.refine_net_num_cascade):
+            num = self.refine_net_num_cascade-i-1
+            for j in range(num):
+                exec('x_i = self.refine_net_cascade_%s_%s_conv1(x[i])' % (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_bn1(x_i)' % (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_conv2(x_i)' % (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_bn2(x_i)' % (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_conv3(x_i)' % (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_bn3(x_i)' % (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_relu(x_i)' % (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_downsample_0(x_i)' % \
+                    (i, j))
+                exec('x_i = self.refine_net_cascade_%s_%s_downsample_1(x_i)' % \
+                    (i, j))
+            exec('x_i = self.refine_net_cascade_%s_%s(x_i)' % (i, j))
+            refine_fms.append(x_i)
+
+        out = torch.cat(refine_fms, dim=1)
+        out = self.refine_net_final_predict_0_conv1(out)
+        out = self.refine_net_final_predict_0_bn1(out)
+        out = self.refine_net_final_predict_0_conv2(out)
+        out = self.refine_net_final_predict_0_bn2(out)
+        out = self.refine_net_final_predict_0_conv3(out)
+        out = self.refine_net_final_predict_0_bn3(out)
+        out = self.refine_net_final_predict_0_relu(out)
+        out = self.refine_net_final_predict_0_downsample_0(out)
+        out = self.refine_net_final_predict_0_downsample_1(out)
+        out = self.refine_net_final_predict_1(out)
+        out = self.refine_net_final_predict_2(out)
 
         return x
