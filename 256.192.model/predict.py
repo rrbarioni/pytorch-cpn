@@ -1,6 +1,7 @@
 import os
 import sys
 sys.path.insert(0, '..')
+# os.environ['CUDA_VISIBLE_DEVICES']=''
 
 import math
 import time
@@ -31,6 +32,8 @@ def load_model():
     model = torch.nn.DataParallel(model).cuda()
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
+
+    model = list(model.modules())[1]
 
     return model
 
