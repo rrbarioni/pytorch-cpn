@@ -8,7 +8,7 @@ class CPN(nn.Module):
     def __init__(self, output_shape, num_class):
         super(CPN, self).__init__()
         self.channel_settings = [2048, 1024, 512, 256]
-        
+
         # resnet
         self.resnet_inplanes = 64
         self.resnet_layers = [3, 4, 6, 3]
@@ -47,8 +47,9 @@ class CPN(nn.Module):
             exec('self.resnet_layer%s_0_downsample_1 = nn.BatchNorm2d( \
                 planes * block_expansion)' % (i+1))
 
-            self.inplanes = planes * block_expansion
+            self.resnet_inplanes = planes * block_expansion
             for b in range(1, blocks):
+                inplanes = self.resnet_inplanes
                 exec('self.resnet_layer%s_%s_conv1 = nn.Conv2d(inplanes, \
                     planes, kernel_size=1, bias=False)' % (i+1, b))
                 exec('self.resnet_layer%s_%s_bn1 = nn.BatchNorm2d(planes)' % \
@@ -130,7 +131,7 @@ class CPN(nn.Module):
                 exec('self.refine_net_cascade_%s_%s_conv3 = nn.Conv2d(planes, \
                     planes * 2, kernel_size=1, bias=False)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_bn3 = nn.BatchNorm2d( \
-                    planes)' % (i, j))
+                    planes * 2)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_relu = nn.ReLU( \
                     inplace=True)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_downsample_0 = nn.Conv2d( \
@@ -167,95 +168,164 @@ class CPN(nn.Module):
 
     def forward(self, x):
         # resnet
-        x = self.resnet_conv1(x)
-        x = self.resnet_bn1(x)
-        x = self.resnet_relu(x)
-        x = self.resnet_maxpool(x)
+        self.x = x
+        self.x = self.resnet_conv1(self.x)
+        self.x = self.resnet_bn1(self.x)
+        self.x = self.resnet_relu(self.x)
+        self.x = self.resnet_maxpool(self.x)
 
+        self.x0 = self.x
         for i in range(len(self.resnet_layers)):
-            residual = x
-            exec('out = self.resnet_layer%s_0_conv1(x)' % (i+1))
-            exec('out = self.resnet_layer%s_0_bn1(out)' % (i+1))
-            exec('out = self.resnet_layer%s_0_conv2(out)' % (i+1))
-            exec('out = self.resnet_layer%s_0_bn2(out)' % (i+1))
-            exec('out = self.resnet_layer%s_0_conv3(out)' % (i+1))
-            exec('out = self.resnet_layer%s_0_bn3(out)' % (i+1))
-            exec('residual = self.resnet_layer%s_0_downsample_0(x)' % (i+1))
-            exec('residual = self.resnet_layer%s_0_downsample_1(residual)' % \
-                (i+1))
-            out += residual
-            exec('out = self.resnet_layer%s_0_relu(out)' % (i+1))
-            x = out
+            blocks = self.resnet_layers[i]
+            exec('self.residual = self.x%s' % (i))
+            exec('self.out = self.resnet_layer%s_0_conv1(self.x%s)' % (i+1, i))
+            exec('self.out = self.resnet_layer%s_0_bn1(self.out)' % (i+1))
+            exec('self.out = self.resnet_layer%s_0_relu(self.out)' % (i+1))
+
+            exec('self.out = self.resnet_layer%s_0_conv2(self.out)' % (i+1))
+            exec('self.out = self.resnet_layer%s_0_bn2(self.out)' % (i+1))
+            exec('self.out = self.resnet_layer%s_0_relu(self.out)' % (i+1))
+
+            exec('self.out = self.resnet_layer%s_0_conv3(self.out)' % (i+1))
+            exec('self.out = self.resnet_layer%s_0_bn3(self.out)' % (i+1))
+
+            exec('self.residual = self.resnet_layer%s_0_downsample_0( \
+                self.x%s)' % (i+1, i))
+            exec('self.residual = self.resnet_layer%s_0_downsample_1( \
+                self.residual)' % (i+1))
+
+            self.out += self.residual
+            exec('self.out = self.resnet_layer%s_0_relu(self.out)' % (i+1))
+            exec('self.x%s = self.out' % (i+1))
 
             for b in range(1, blocks):
-                residual = x
-                exec('out = self.resnet_layer%s_%s_conv1(x)' % (i+1, b))
-                exec('out = self.resnet_layer%s_%s_bn1(out)' % (i+1, b))
-                exec('out = self.resnet_layer%s_%s_conv2(out)' % (i+1, b))
-                exec('out = self.resnet_layer%s_%s_bn2(out)' % (i+1, b))
-                exec('out = self.resnet_layer%s_%s_conv3(out)' % (i+1, b))
-                exec('out = self.resnet_layer%s_%s_bn3(out)' % (i+1, b))
-                out += residual
-                exec('out = self.resnet_layer%s_%s_relu(out)' % (i+1, b))
-                x = out
+                exec('self.residual = self.x%s' % (i+1))
+                exec('self.out = self.resnet_layer%s_%s_conv1(self.x%s)' % \
+                    (i+1, b, i+1))
+                exec('self.out = self.resnet_layer%s_%s_bn1(self.out)' % \
+                    (i+1, b))
+                exec('self.out = self.resnet_layer%s_%s_relu(self.out)' % \
+                    (i+1, b))
+
+                exec('self.out = self.resnet_layer%s_%s_conv2(self.out)' % \
+                    (i+1, b))
+                exec('self.out = self.resnet_layer%s_%s_bn2(self.out)' % \
+                    (i+1, b))
+                exec('self.out = self.resnet_layer%s_%s_relu(self.out)' % \
+                    (i+1, b))
+
+                exec('self.out = self.resnet_layer%s_%s_conv3(self.out)' % \
+                    (i+1, b))
+                exec('self.out = self.resnet_layer%s_%s_bn3(self.out)' % \
+                    (i+1, b))
+
+                self.out += self.residual
+                exec('self.out = self.resnet_layer%s_%s_relu(self.out)' % \
+                    (i+1, b))
+                exec('self.x%s = self.out' % (i+1))
+        self.x = [self.x4, self.x3, self.x2, self.x1]
 
         # global_net
-        global_fms, global_outs = [], []
+        self.global_fms, self.global_outs = [], []
         for i in range(len(self.channel_settings)):
             if i == 0:
-                exec('feature = self.global_net_laterals_%s_0(x[i])' % i)
-                exec('feature = self.global_net_laterals_%s_1(feature)' % i)
-                exec('feature = self.global_net_laterals_%s_2(feature)' % i)
+                exec('self.feature = self.global_net_laterals_%s_0(self.x[i])' \
+                    % i)
+                exec('self.feature = self.global_net_laterals_%s_1( \
+                    self.feature)' % i)
+                exec('self.feature = self.global_net_laterals_%s_2( \
+                    self.feature)' % i)
             else:
-                exec('feature = self.global_net_laterals_%s_0(x[i]) + up' % i)
-                exec('feature = self.global_net_laterals_%s_1(feature) + up' % \
-                    i)
-                exec('feature = self.global_net_laterals_%s_2(feature) + up' % \
-                    i)
-            global_fms.append(feature)
+                exec('self.feature = self.global_net_laterals_%s_0( \
+                    self.x[i]) + self.up' % i)
+                exec('self.feature = self.global_net_laterals_%s_1( \
+                    self.feature) + self.up' % i)
+                exec('self.feature = self.global_net_laterals_%s_2( \
+                    self.feature) + self.up' % i)
+            self.global_fms.append(self.feature)
             if i != len(self.channel_settings) - 1:
-                exec('up = self.global_net_upsamples_%s_0(feature)' % i)
-                exec('up = self.global_net_upsamples_%s_1(up)' % i)
-                exec('up = self.global_net_upsamples_%s_2(up)' % i)
-            exec('feature = self.global_net_predict_%s_0(feature)' % i)
-            exec('feature = self.global_net_predict_%s_1(feature)' % i)
-            exec('feature = self.global_net_predict_%s_2(feature)' % i)
-            exec('feature = self.global_net_predict_%s_3(feature)' % i)
-            exec('feature = self.global_net_predict_%s_4(feature)' % i)
-            exec('feature = self.global_net_predict_%s_5(feature)' % i)
-            global_outs.append(feature)
-        x = global_fms
+                exec('self.up = self.global_net_upsamples_%s_0(self.feature)' \
+                    % i)
+                exec('self.up = self.global_net_upsamples_%s_1(self.up)' % i)
+                exec('self.up = self.global_net_upsamples_%s_2(self.up)' % i)
+            exec('self.feature = self.global_net_predict_%s_0(self.feature)' % \
+                    i)
+            exec('self.feature = self.global_net_predict_%s_1(self.feature)' % \
+                    i)
+            exec('self.feature = self.global_net_predict_%s_2(self.feature)' % \
+                    i)
+            exec('self.feature = self.global_net_predict_%s_3(self.feature)' % \
+                    i)
+            exec('self.feature = self.global_net_predict_%s_4(self.feature)' % \
+                    i)
+            exec('self.feature = self.global_net_predict_%s_5(self.feature)' % \
+                    i)
+            self.global_outs.append(self.feature)
+        self.x = self.global_fms
 
         # refine_net
-        refine_fms = []
+        self.refine_fms = []
         for i in range(self.refine_net_num_cascade):
             num = self.refine_net_num_cascade-i-1
             for j in range(num):
-                exec('x_i = self.refine_net_cascade_%s_%s_conv1(x[i])' % (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_bn1(x_i)' % (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_conv2(x_i)' % (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_bn2(x_i)' % (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_conv3(x_i)' % (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_bn3(x_i)' % (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_relu(x_i)' % (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_downsample_0(x_i)' % \
-                    (i, j))
-                exec('x_i = self.refine_net_cascade_%s_%s_downsample_1(x_i)' % \
-                    (i, j))
-            exec('x_i = self.refine_net_cascade_%s_%s(x_i)' % (i, j))
-            refine_fms.append(x_i)
+                self.residual = self.x[i]
+                exec('self.out = self.refine_net_cascade_%s_%s_conv1( \
+                    self.x[i])' % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_bn1(self.out)' \
+                    % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_relu(self.out)' \
+                    % (i, j))
 
-        out = torch.cat(refine_fms, dim=1)
-        out = self.refine_net_final_predict_0_conv1(out)
-        out = self.refine_net_final_predict_0_bn1(out)
-        out = self.refine_net_final_predict_0_conv2(out)
-        out = self.refine_net_final_predict_0_bn2(out)
-        out = self.refine_net_final_predict_0_conv3(out)
-        out = self.refine_net_final_predict_0_bn3(out)
-        out = self.refine_net_final_predict_0_relu(out)
-        out = self.refine_net_final_predict_0_downsample_0(out)
-        out = self.refine_net_final_predict_0_downsample_1(out)
-        out = self.refine_net_final_predict_1(out)
-        out = self.refine_net_final_predict_2(out)
+                exec('self.out = self.refine_net_cascade_%s_%s_conv2( \
+                    self.out)' % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_bn2(self.out)' \
+                    % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_relu(self.out)' \
+                    % (i, j))
 
-        return x
+                exec('self.out = self.refine_net_cascade_%s_%s_conv3( \
+                    self.out)' % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_bn3(self.out)' \
+                    % (i, j))
+
+                exec('self.residual = \
+                    self.refine_net_cascade_%s_%s_downsample_0(self.x[i])' % \
+                        (i, j))
+                exec('self.residual = \
+                    self.refine_net_cascade_%s_%s_downsample_1(self.residual)' \
+                        % (i, j))
+
+                self.out += self.residual
+                exec('self.out = self.refine_net_cascade_%s_%s_relu(self.out)' \
+                    % (i, j))
+                self.x[i] = self.out
+
+            exec('self.x[i] = self.refine_net_cascade_%s_%s(self.x[i])' \
+                % (i, num))
+            self.refine_fms.append(self.x[i])
+
+        self.x = torch.cat(self.refine_fms, dim=1)
+
+        self.residual = self.x
+        self.out = self.refine_net_final_predict_0_conv1(self.x)
+        self.out = self.refine_net_final_predict_0_bn1(self.out)
+        self.out = self.refine_net_final_predict_0_relu(self.out)
+
+        self.out = self.refine_net_final_predict_0_conv2(self.out)
+        self.out = self.refine_net_final_predict_0_bn2(self.out)
+        self.out = self.refine_net_final_predict_0_relu(self.out)
+
+        self.out = self.refine_net_final_predict_0_conv3(self.out)
+        self.out = self.refine_net_final_predict_0_bn3(self.out)
+
+        self.residual = self.refine_net_final_predict_0_downsample_0(self.x)
+        self.residual = self.refine_net_final_predict_0_downsample_1( \
+            self.residual)
+        self.out += self.residual
+        self.out = self.refine_net_final_predict_0_relu(self.out)
+
+        self.out = self.refine_net_final_predict_1(self.out)
+        self.out = self.refine_net_final_predict_2(self.out)
+        self.refine_out = self.out
+
+        return self.global_outs, self.refine_out
