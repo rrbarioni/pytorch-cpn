@@ -3,6 +3,7 @@ import sys
 sys.path.insert(0, '..')
 # os.environ['CUDA_VISIBLE_DEVICES']=''
 
+import re
 import math
 import time
 import cv2
@@ -13,9 +14,6 @@ import torch
 from test_config import cfg
 from utils.imutils import *
 from utils.transforms import *
-
-# model_type can be 'flattened' or 'original'
-model_type = 'flattened'
 
 colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0],
     [170, 255, 0], [85, 255, 0], [0, 255, 0], [0, 255, 85], [0, 255, 170],
@@ -28,12 +26,8 @@ keypoints_pairs = [(0,1), (0,2), (1,3), (2,4), (0,5), (0,6), (5,7), (6,8),
 def load_flattened_model():
     def checkpoint_state_dict_to_model_state_dict_keys(checkpoint_state_dict):
         def ckpt_to_model_key(k):
-            # remove initial "module."
-            m = 'module.'
-            k = k[0:k.find(m)] + k[k.find(m) + len(m):len(k)]
-    
             # replace all "." with "_" (except the last one ".")
-            dot_occurences = [c.start() for c in re.finditer('\.', k)][:-1]
+            dot_occurences = [c.start() for c in re.finditer('\.', k)][1:-1]
             k = list(k)
             for di in dot_occurences:
                 k[di] = '_'
@@ -54,6 +48,7 @@ def load_flattened_model():
         checkpoint['state_dict'])
 
     model = network.__dict__[cfg.model](cfg.output_shape, cfg.num_class)
+    model = torch.nn.DataParallel(model)
     model.load_state_dict(checkpoint['state_dict'])
     model.cuda()
     model.eval()
@@ -154,12 +149,10 @@ def canvas_with_skeleton(canvas, keypoints):
 
     return canvas
 
-if model_type == 'flattened':
-    from flattened_network import network
-    model = load_flattened_model()
-if model_type = 'original':
-    from networks import network
-    model = load_model()
+from flattened_network import network
+model = load_flattened_model()
+# from networks import network
+# model = load_model()
 
 cap = cv2.VideoCapture(0)
 while(True):
