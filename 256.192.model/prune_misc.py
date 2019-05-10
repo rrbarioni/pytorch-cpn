@@ -84,8 +84,8 @@ def prune_conv_layer(model, layer_index, filter_index):
     old_weights = conv.weight.data.cpu().numpy()
     new_weights = new_conv.weight.data.cpu().numpy()
 
-    new_weights[: filter_index, :, :, :] = old_weights[: filter_index, :, :, :]
-    new_weights[filter_index : , :, :, :] = old_weights[filter_index + 1 :, :, :, :]
+    new_weights[:filter_index,:,:,:] = old_weights[:filter_index,:,:,:]
+    new_weights[filter_index:,:,:,:] = old_weights[filter_index + 1:,:,:,:]
     new_conv.weight.data = torch.from_numpy(new_weights).cuda()
 
     if conv.bias is not None:
@@ -93,14 +93,14 @@ def prune_conv_layer(model, layer_index, filter_index):
 
         bias = np.zeros(shape = (bias_numpy.shape[0] - 1), dtype = np.float32)
         bias[:filter_index] = bias_numpy[:filter_index]
-        bias[filter_index : ] = bias_numpy[filter_index + 1 :]
+        bias[filter_index:] = bias_numpy[filter_index + 1 :]
         new_conv.bias.data = torch.from_numpy(bias).cuda()
 
     if not next_conv is None:
         next_new_conv = \
-            torch.nn.Conv2d(in_channels = next_conv.in_channels - 1,\
-                out_channels =  next_conv.out_channels, \
-                kernel_size = next_conv.kernel_size, \
+            torch.nn.Conv2d(in_channels = next_conv.in_channels - 1,
+                out_channels =  next_conv.out_channels,
+                kernel_size = next_conv.kernel_size,
                 stride = next_conv.stride,
                 padding = next_conv.padding,
                 dilation = next_conv.dilation,
@@ -110,8 +110,8 @@ def prune_conv_layer(model, layer_index, filter_index):
         old_weights = next_conv.weight.data.cpu().numpy()
         new_weights = next_new_conv.weight.data.cpu().numpy()
 
-        new_weights[:, : filter_index, :, :] = old_weights[:, : filter_index, :, :]
-        new_weights[:, filter_index : , :, :] = old_weights[:, filter_index + 1 :, :, :]
+        new_weights[:,:filter_index,:,:] = old_weights[:,:filter_index,:,:]
+        new_weights[:,filter_index:,:,:] = old_weights[:,filter_index + 1:,:,:]
         next_new_conv.weight.data = torch.from_numpy(new_weights).cuda()
 
         if next_new_conv.bias is not None:
@@ -133,7 +133,10 @@ def prune_conv_layer(model, layer_index, filter_index):
         model = features
 
     else:
-        #Prunning the last conv layer. This affects the first linear layer of the classifier.
+        '''
+        Prunning the last conv layer. This affects the first linear layer of the
+        classifier.
+        '''
         # model.features = torch.nn.Sequential(
         model = torch.nn.Sequential(
                 # *(replace_layers(model.features, i, [layer_index], \
@@ -150,10 +153,12 @@ def prune_conv_layer(model, layer_index, filter_index):
 
         if old_linear_layer is None:
             raise BaseException('No linear layer found in classifier')
-        params_per_input_channel = old_linear_layer.in_features / conv.out_channels
+        params_per_input_channel = \
+            old_linear_layer.in_features / conv.out_channels
 
         new_linear_layer = \
-            torch.nn.Linear(old_linear_layer.in_features - params_per_input_channel, 
+            torch.nn.Linear(
+                old_linear_layer.in_features - params_per_input_channel, 
                 old_linear_layer.out_features)
         
         old_weights = old_linear_layer.weight.data.cpu().numpy()
