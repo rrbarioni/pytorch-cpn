@@ -33,7 +33,7 @@ def main(args):
     def load_flattened_model(args_checkpoint, args_test):
         def checkpoint_state_dict_to_model_state_dict_keys(checkpoint_state_dict):
             def ckpt_to_model_key(k):
-                # replace all "." with "_" (except the last and the first one ".")
+                # replace all "." with "_" (except the first and the last one ".")
                 dot_occurences = [c.start() for c in re.finditer('\.', k)][1:-1]
                 k = list(k)
                 for di in dot_occurences:

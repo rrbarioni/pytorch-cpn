@@ -26,7 +26,7 @@ keypoints_pairs = [(0,1), (0,2), (1,3), (2,4), (0,5), (0,6), (5,7), (6,8),
 def load_flattened_model():
     def checkpoint_state_dict_to_model_state_dict_keys(checkpoint_state_dict):
         def ckpt_to_model_key(k):
-            # replace all "." with "_" (except the last one ".")
+            # replace all "." with "_" (except the first and the last one ".")
             dot_occurences = [c.start() for c in re.finditer('\.', k)][1:-1]
             k = list(k)
             for di in dot_occurences:
