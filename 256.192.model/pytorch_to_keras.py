@@ -28,11 +28,18 @@ def load_model():
     
     model = list(model.modules())[1]
 
-    return model
+    return model, checkpoint
 
-model = load_model()
+model, checkpoint = load_model()
 
 input_np = np.random.uniform(0, 1, (1,3) + cfg.data_shape)
 input_var = torch.autograd.Variable(torch.FloatTensor(input_np))
 
 k_model = pytorch_to_keras(model, input_var, [(3,) + cfg.data_shape], verbose=True)  
+
+'''
+from merged_network import network
+model = network.CPN(cfg.output_shape, cfg.num_class)
+model.cuda()
+global_outputs, refine_output = model(input_var)
+'''

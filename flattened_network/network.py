@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-class CPN(nn.Module):
+class CPN50(nn.Module):
     def __init__(self, output_shape, num_class):
-        super(CPN, self).__init__()
+        super(CPN50, self).__init__()
         self.channel_settings = [2048, 1024, 512, 256]
 
         # resnet
