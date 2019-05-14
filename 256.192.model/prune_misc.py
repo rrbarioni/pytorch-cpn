@@ -53,8 +53,8 @@ model = load_flattened_model()
 from prunning import prunner
 model2 = prunner.prune_layer(model, 0, 1)
 
-from summary import summary
-summary(model2, (3, 256, 192))
+# from summary import summary
+# summary(model2, (3, 256, 192))
 
-import hiddenlayer as hl
-hl.build_graph(model, torch.zeros([1, 3, 256, 192]))
+from prunning.prunner import get_model_graph
+trace_layers, model_graph = get_model_graph(model, (3, 256, 192))
