@@ -33,14 +33,16 @@ class CPN50(nn.Module):
             exec('self.resnet_layer%s_0_conv1 = nn.Conv2d(inplanes, planes, \
                 kernel_size=1, bias=False)' % (i+1))
             exec('self.resnet_layer%s_0_bn1 = nn.BatchNorm2d(planes)' % (i+1))
+            exec('self.resnet_layer%s_0_relu1 = nn.ReLU(inplace=True)' % (i+1))
             exec('self.resnet_layer%s_0_conv2 = nn.Conv2d(planes, planes, \
                 kernel_size=3, stride=stride, padding=1, bias=False)' % (i+1))
             exec('self.resnet_layer%s_0_bn2 = nn.BatchNorm2d(planes)' % (i+1))
+            exec('self.resnet_layer%s_0_relu2 = nn.ReLU(inplace=True)' % (i+1))
             exec('self.resnet_layer%s_0_conv3 = nn.Conv2d(planes, planes * 4, \
                 kernel_size=1, bias=False)' % (i+1))
             exec('self.resnet_layer%s_0_bn3 = nn.BatchNorm2d( planes * 4)' % \
                 (i+1))
-            exec('self.resnet_layer%s_0_relu = nn.ReLU(inplace=True)' % (i+1))
+            exec('self.resnet_layer%s_0_relu3 = nn.ReLU(inplace=True)' % (i+1))
             exec('self.resnet_layer%s_0_downsample_0 = nn.Conv2d(inplanes, \
                 planes * block_expansion, kernel_size=1, stride=stride, \
                 bias=False)' % (i+1))
@@ -54,15 +56,19 @@ class CPN50(nn.Module):
                     planes, kernel_size=1, bias=False)' % (i+1, b))
                 exec('self.resnet_layer%s_%s_bn1 = nn.BatchNorm2d(planes)' % \
                     (i+1, b))
+                exec('self.resnet_layer%s_%s_relu1 = nn.ReLU(inplace=True)' % \
+                    (i+1, b))
                 exec('self.resnet_layer%s_%s_conv2 = nn.Conv2d(planes, planes, \
                     kernel_size=3, stride=1, padding=1, bias=False)' % (i+1, b))
                 exec('self.resnet_layer%s_%s_bn2 = nn.BatchNorm2d(planes)' % \
+                    (i+1, b))
+                exec('self.resnet_layer%s_%s_relu2 = nn.ReLU(inplace=True)' % \
                     (i+1, b))
                 exec('self.resnet_layer%s_%s_conv3 = nn.Conv2d(planes, \
                     planes * 4, kernel_size=1, bias=False)' % (i+1, b))
                 exec('self.resnet_layer%s_%s_bn3 = nn.BatchNorm2d(planes * 4)' \
                     % (i+1, b))
-                exec('self.resnet_layer%s_%s_relu = nn.ReLU(inplace=True)' % \
+                exec('self.resnet_layer%s_%s_relu3 = nn.ReLU(inplace=True)' % \
                     (i+1, b))
 
         # global_net
@@ -123,16 +129,20 @@ class CPN50(nn.Module):
                     inplanes, planes, kernel_size=1, bias=False)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_bn1 = nn.BatchNorm2d( \
                     planes)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_relu1 = nn.ReLU( \
+                    inplace=True)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_conv2 = nn.Conv2d(planes, \
                     planes, kernel_size=3, stride=stride, padding=1, \
                     bias=False)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_bn2 = nn.BatchNorm2d( \
                     planes)' % (i, j))
+                exec('self.refine_net_cascade_%s_%s_relu2 = nn.ReLU( \
+                    inplace=True)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_conv3 = nn.Conv2d(planes, \
                     planes * 2, kernel_size=1, bias=False)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_bn3 = nn.BatchNorm2d( \
                     planes * 2)' % (i, j))
-                exec('self.refine_net_cascade_%s_%s_relu = nn.ReLU( \
+                exec('self.refine_net_cascade_%s_%s_relu3 = nn.ReLU( \
                     inplace=True)' % (i, j))
                 exec('self.refine_net_cascade_%s_%s_downsample_0 = nn.Conv2d( \
                     inplanes, planes * 2, kernel_size=1, stride=stride, \
@@ -151,13 +161,15 @@ class CPN50(nn.Module):
         self.refine_net_final_predict_0_conv1 = nn.Conv2d(inplanes, planes,
             kernel_size=1, bias=False)
         self.refine_net_final_predict_0_bn1 = nn.BatchNorm2d(planes)
+        self.refine_net_final_predict_0_relu1 = nn.ReLU(inplace=True)
         self.refine_net_final_predict_0_conv2 = nn.Conv2d(planes, planes,
             kernel_size=3, stride=stride, padding=1, bias=False)
         self.refine_net_final_predict_0_bn2 = nn.BatchNorm2d(planes)
+        self.refine_net_final_predict_0_relu2 = nn.ReLU(inplace=True)
         self.refine_net_final_predict_0_conv3 = nn.Conv2d(planes, planes * 2,
             kernel_size=1, bias=False)
         self.refine_net_final_predict_0_bn3 = nn.BatchNorm2d(planes * 2)
-        self.refine_net_final_predict_0_relu = nn.ReLU(inplace=True)
+        self.refine_net_final_predict_0_relu3 = nn.ReLU(inplace=True)
         self.refine_net_final_predict_0_downsample_0 = nn.Conv2d(inplanes,
             planes * 2, kernel_size=1, stride=stride, bias=False)
         self.refine_net_final_predict_0_downsample_1 = nn.BatchNorm2d(
@@ -180,11 +192,11 @@ class CPN50(nn.Module):
             exec('self.residual = self.x%s' % (i))
             exec('self.out = self.resnet_layer%s_0_conv1(self.x%s)' % (i+1, i))
             exec('self.out = self.resnet_layer%s_0_bn1(self.out)' % (i+1))
-            exec('self.out = self.resnet_layer%s_0_relu(self.out)' % (i+1))
+            exec('self.out = self.resnet_layer%s_0_relu1(self.out)' % (i+1))
 
             exec('self.out = self.resnet_layer%s_0_conv2(self.out)' % (i+1))
             exec('self.out = self.resnet_layer%s_0_bn2(self.out)' % (i+1))
-            exec('self.out = self.resnet_layer%s_0_relu(self.out)' % (i+1))
+            exec('self.out = self.resnet_layer%s_0_relu2(self.out)' % (i+1))
 
             exec('self.out = self.resnet_layer%s_0_conv3(self.out)' % (i+1))
             exec('self.out = self.resnet_layer%s_0_bn3(self.out)' % (i+1))
@@ -195,7 +207,7 @@ class CPN50(nn.Module):
                 self.residual)' % (i+1))
 
             self.out += self.residual
-            exec('self.out = self.resnet_layer%s_0_relu(self.out)' % (i+1))
+            exec('self.out = self.resnet_layer%s_0_relu3(self.out)' % (i+1))
             exec('self.x%s = self.out' % (i+1))
 
             for b in range(1, blocks):
@@ -204,14 +216,14 @@ class CPN50(nn.Module):
                     (i+1, b, i+1))
                 exec('self.out = self.resnet_layer%s_%s_bn1(self.out)' % \
                     (i+1, b))
-                exec('self.out = self.resnet_layer%s_%s_relu(self.out)' % \
+                exec('self.out = self.resnet_layer%s_%s_relu1(self.out)' % \
                     (i+1, b))
 
                 exec('self.out = self.resnet_layer%s_%s_conv2(self.out)' % \
                     (i+1, b))
                 exec('self.out = self.resnet_layer%s_%s_bn2(self.out)' % \
                     (i+1, b))
-                exec('self.out = self.resnet_layer%s_%s_relu(self.out)' % \
+                exec('self.out = self.resnet_layer%s_%s_relu2(self.out)' % \
                     (i+1, b))
 
                 exec('self.out = self.resnet_layer%s_%s_conv3(self.out)' % \
@@ -220,7 +232,7 @@ class CPN50(nn.Module):
                     (i+1, b))
 
                 self.out += self.residual
-                exec('self.out = self.resnet_layer%s_%s_relu(self.out)' % \
+                exec('self.out = self.resnet_layer%s_%s_relu3(self.out)' % \
                     (i+1, b))
                 exec('self.x%s = self.out' % (i+1))
         self.x = [self.x4, self.x3, self.x2, self.x1]
@@ -273,15 +285,15 @@ class CPN50(nn.Module):
                     self.x[i])' % (i, j))
                 exec('self.out = self.refine_net_cascade_%s_%s_bn1(self.out)' \
                     % (i, j))
-                exec('self.out = self.refine_net_cascade_%s_%s_relu(self.out)' \
-                    % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_relu1( \
+                    self.out)' % (i, j))
 
                 exec('self.out = self.refine_net_cascade_%s_%s_conv2( \
                     self.out)' % (i, j))
                 exec('self.out = self.refine_net_cascade_%s_%s_bn2(self.out)' \
                     % (i, j))
-                exec('self.out = self.refine_net_cascade_%s_%s_relu(self.out)' \
-                    % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_relu2( \
+                    self.out)'  % (i, j))
 
                 exec('self.out = self.refine_net_cascade_%s_%s_conv3( \
                     self.out)' % (i, j))
@@ -296,8 +308,8 @@ class CPN50(nn.Module):
                         % (i, j))
 
                 self.out += self.residual
-                exec('self.out = self.refine_net_cascade_%s_%s_relu(self.out)' \
-                    % (i, j))
+                exec('self.out = self.refine_net_cascade_%s_%s_relu3( \
+                    self.out)' % (i, j))
                 self.x[i] = self.out
 
             exec('self.x[i] = self.refine_net_cascade_%s_%s(self.x[i])' \
@@ -309,11 +321,11 @@ class CPN50(nn.Module):
         self.residual = self.x
         self.out = self.refine_net_final_predict_0_conv1(self.x)
         self.out = self.refine_net_final_predict_0_bn1(self.out)
-        self.out = self.refine_net_final_predict_0_relu(self.out)
+        self.out = self.refine_net_final_predict_0_relu1(self.out)
 
         self.out = self.refine_net_final_predict_0_conv2(self.out)
         self.out = self.refine_net_final_predict_0_bn2(self.out)
-        self.out = self.refine_net_final_predict_0_relu(self.out)
+        self.out = self.refine_net_final_predict_0_relu2(self.out)
 
         self.out = self.refine_net_final_predict_0_conv3(self.out)
         self.out = self.refine_net_final_predict_0_bn3(self.out)
@@ -322,7 +334,7 @@ class CPN50(nn.Module):
         self.residual = self.refine_net_final_predict_0_downsample_1( \
             self.residual)
         self.out += self.residual
-        self.out = self.refine_net_final_predict_0_relu(self.out)
+        self.out = self.refine_net_final_predict_0_relu3(self.out)
 
         self.out = self.refine_net_final_predict_1(self.out)
         self.out = self.refine_net_final_predict_2(self.out)
