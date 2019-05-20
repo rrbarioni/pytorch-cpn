@@ -88,10 +88,6 @@ def predict(model, input_image):
         single_map = score_map[0]
 
         keypoints = []
-        
-        r0 = single_map.copy()
-        r0 /= 255
-        r0 += 0.5
         for p in range(cfg.num_class): 
             single_map[p] /= np.amax(single_map[p])
             border = 10
