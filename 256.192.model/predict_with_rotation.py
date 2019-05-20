@@ -8,6 +8,7 @@ import math
 import time
 import cv2
 import numpy as np
+import imutils
 
 import torch
 
@@ -22,6 +23,8 @@ colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0],
 
 keypoints_pairs = [(0,1), (0,2), (1,3), (2,4), (0,5), (0,6), (5,7), (6,8),
     (7,9), (8,10), (0,11), (0,12), (11,13), (12,14), (13,15), (14,16)]
+
+rotation_rate = 45
 
 def load_flattened_model():
     def checkpoint_state_dict_to_model_state_dict_keys(checkpoint_state_dict):
@@ -72,8 +75,24 @@ def load_model():
 
     return model
 
-def predict(model, input_image):
+def apply_image_rotation(mat, rotation):
+    mat = imutils.rotate_bound(mat, rotation)
+    
+    return mat
+    
+def revert_heatmap_rotation(mat, rotation):
+    _, mat_h, mat_w = mat.shape
+    
+    for (i, joint_mat) in enumerate(mat):
+        joint_mat = imutils.rotate_bound(joint_mat, -rotation)
+        joint_mat = cv2.resize(joint_mat, (mat_w, mat_h))
+        mat[i] = joint_mat
+    
+    return mat
+
+def get_heatmaps(model, input_image, rotation):
     image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
+    image = apply_image_rotation(image, rotation)
     image = cv2.resize(image, (cfg.data_shape[1], cfg.data_shape[0]))
     img = im_to_torch(image)
     img = color_normalize(img, cfg.pixel_means)
@@ -81,50 +100,19 @@ def predict(model, input_image):
 
     with torch.no_grad():
         input_var = torch.autograd.Variable(img.cuda())
-
         global_outputs, refine_output = model(input_var)
         score_map = refine_output.data.cpu()
         score_map = score_map.numpy()
         single_map = score_map[0]
-
-        keypoints = []
         
-        r0 = single_map.copy()
-        r0 /= 255
-        r0 += 0.5
-        for p in range(cfg.num_class): 
-            single_map[p] /= np.amax(single_map[p])
-            border = 10
-            dr = np.zeros((
-                cfg.output_shape[0] + 2 * border,
-                cfg.output_shape[1] + 2 * border))
-            dr[border:-border, border:-border] = single_map[p].copy()
-            dr = cv2.GaussianBlur(dr, (21, 21), 0)
-            lb = dr.argmax()
-            y, x = np.unravel_index(lb, dr.shape)
-            dr[y, x] = 0
-            lb = dr.argmax()
-            py, px = np.unravel_index(lb, dr.shape)
-            y -= border
-            x -= border
-            py -= border + y
-            px -= border + x
-            ln = (px ** 2 + py ** 2) ** 0.5
-            delta = 0.25
-            if ln > 1e-3:
-                x += delta * px / ln
-                y += delta * py / ln
-            x = max(0, min(x, cfg.output_shape[1] - 1))
-            y = max(0, min(y, cfg.output_shape[0] - 1))
-            resy = (cfg.data_shape[0] / cfg.output_shape[0]) * y + 2
-            resx = (cfg.data_shape[1] / cfg.output_shape[1]) * x + 2
-            resy = resy * input_image.shape[0] / cfg.data_shape[0]
-            resx = resx * input_image.shape[1] / cfg.data_shape[1]
-            resy = int(round(resy))
-            resx = int(round(resx))
-            keypoints.append((resx, resy))
+        single_map = revert_heatmap_rotation(single_map, rotation)
 
-    return keypoints
+    return single_map
+
+def predict(model, input_image):
+    single_map_list = [
+        get_heatmaps(model, image, r)
+        for r in range(0, 360, rotation_rate)]
 
 def canvas_with_skeleton(canvas, keypoints):
     for i in range(len(keypoints_pairs)):

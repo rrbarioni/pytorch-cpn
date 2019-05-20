@@ -56,8 +56,8 @@ def main(args):
 
         model = network.__dict__[cfg.model](cfg.output_shape, cfg.num_class)
         model = torch.nn.DataParallel(model)
-        model.load_state_dict(checkpoint['state_dict'])
         model.cuda()
+        model.load_state_dict(checkpoint['state_dict'])
         model.eval()
 
         return model
@@ -77,10 +77,10 @@ def main(args):
 
         return model
 
-    from networks import network
-    model = load_model(args.checkpoint, args.test)
-    # from flattened_network import network
-    # model = load_flattened_model(args.checkpoint, args.test)
+    # from networks import network
+    # model = load_model(args.checkpoint, args.test)
+    from flattened_network import network
+    model = load_flattened_model(args.checkpoint, args.test)
 
     test_loader = torch.utils.data.DataLoader(
         MscocoMulti(cfg, train=False),

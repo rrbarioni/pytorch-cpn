@@ -56,5 +56,6 @@ model2 = prunner.prune_layer(model, 0, 1)
 # from summary import summary
 # summary(model2, (3, 256, 192))
 
-from prunning.prunner import get_model_graph
-trace_layers, model_graph = get_model_graph(model, (3, 256, 192))
+from prunning.pruner import PrunerCore
+pc = PrunerCore(model, (3, 256, 192))
+pc.prune('resnet_conv1', 0)
