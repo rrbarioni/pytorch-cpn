@@ -130,8 +130,9 @@ class MscocoMulti(data.Dataset):
         img_path = os.path.join(self.img_folder, image_name)
         gt_bbox = a['unit']['GT_bbox']
 
-        # image = scipy.misc.imread(img_path, mode='BGR')
+        # image = scipy.misc.imread(img_path, mode='RGB')
         image = cv2.imread(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image, details = self.augmentationCropImage(image, gt_bbox)
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 

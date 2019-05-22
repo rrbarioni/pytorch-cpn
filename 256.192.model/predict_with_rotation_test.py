@@ -13,10 +13,12 @@ from canvas import canvas_with_skeleton
 # model = load_flattened_model()
 model = load_model()
 
-img = cv2.imread('media/cr7_2.jpg')
-keypoints = PredictWithRotation.predict(model, img, 90)
-# keypoints = keypoints_selection(keypoints_list)
-canvas = canvas_with_skeleton(img, keypoints)
+input_img = cv2.imread('media/cr7_2.jpg')
+keypoints = PredictWithRotation.predict(model, input_img, 90)
+canvas = canvas_with_skeleton(input_img, keypoints)
 plt.imshow(canvas)
-# canvas = canvas_with_skeleton(img, keypoints_list, 270)
 # cv2.imwrite('canvas.jpg', canvas)
+
+keypoints_list = PredictWithRotation.predict(model, input_img, 90)
+for i, r in enumerate(range(0, 360, 10)):
+    cv2.imwrite('media/canvas%s.jpg' % r, canvas_with_skeleton(img, keypoints_list[i]))

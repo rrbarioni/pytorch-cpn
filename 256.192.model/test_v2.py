@@ -13,6 +13,7 @@ from test_config import cfg
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from utils.osutils import mkdir_p, isfile, isdir, join
+# from dataloader.mscocoMulti import MscocoMulti
 from dataloader.mscocoMulti_with_rotation import MscocoMulti
 from tqdm import tqdm
 
@@ -32,8 +33,10 @@ def main(args):
     print('testing...')
     full_result = []
     for i, (inputs, meta) in tqdm(enumerate(test_loader)):
-        # full_result += Predict.predict_val(model, i, inputs, meta)
+        # full_result += Predict.predict_val(model, inputs, meta)
         full_result += PredictWithRotation.predict_val(model, inputs, meta, 90)
+        # if i == 200:
+        #     break
 
     result_path = args.result
     if not isdir(result_path):

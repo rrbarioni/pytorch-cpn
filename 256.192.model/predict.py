@@ -2,6 +2,7 @@ import os
 import sys
 sys.path.insert(0, '..')
 
+import math
 import cv2
 import numpy as np
 import imutils
@@ -12,6 +13,7 @@ import torch
 from test_config import cfg
 from utils.imutils import *
 from utils.transforms import *
+from canvas import keypoints_pairs
 
 class Predict:
     @staticmethod
@@ -66,7 +68,7 @@ class Predict:
         return keypoints
 
     @staticmethod
-    def predict_val(model, i, inputs, meta):
+    def predict_val(model, inputs, meta):
         single_result_dict_list = []
         with torch.no_grad():
             input_var = torch.autograd.Variable(inputs.cuda())
@@ -90,8 +92,8 @@ class Predict:
                     single_map[p] /= np.amax(single_map[p])
                     border = 10
                     dr = np.zeros((
-                        cfg.output_shape[0] + 2*border,
-                        cfg.output_shape[1]+2*border))
+                        cfg.output_shape[0] + 2 * border,
+                        cfg.output_shape[1] + 2 * border))
                     dr[border:-border, border:-border] = single_map[p].copy()
                     dr = cv2.GaussianBlur(dr, (21, 21), 0)
                     lb = dr.argmax()
@@ -137,21 +139,38 @@ class PredictWithRotation:
         return mat
         
     @staticmethod
-    def revert_heatmap_rotation(mat, rotation):
-        _, mat_h, mat_w = mat.shape
+    def revert_heatmap_rotation(mat, rotation, original_shape, 
+        after_rotation_shape, after_reshape_shape):
+        sin_rot = math.sin(math.radians(rotation))
+        h, w, _ = original_shape
+        hI, wI, _ = after_rotation_shape
+        # hII, wII, _ = after_reshape_shape
+        _, hII, wII = mat.shape
         
-        for (i, joint_mat) in enumerate(mat):
-            joint_mat = imutils.rotate_bound(joint_mat, -rotation)
-            joint_mat = cv2.resize(joint_mat, (mat_w, mat_h))
-            mat[i] = joint_mat
+        pts1 = np.float32([
+            [w / 2, h / 2],
+            [w, h],
+            [w, 0]
+        ])
+        pts2 = np.float32([
+            [wII / 2, hII / 2],
+            [(wI - (h * sin_rot)) * (wII / wI), hII],
+            [wII, w * sin_rot * (hII / hI)]
+        ])
+        M = cv2.getAffineTransform(pts1, pts2)
+        
+        dst = cv2.warpAffine(mat, M, (w, h))
         
         return mat
 
     @staticmethod
     def get_heatmaps(model, input_image, rotation):
+        original_shape = input_image.shape
         image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
         image = PredictWithRotation.apply_image_rotation(image, rotation)
+        after_rotation_shape = image.shape
         image = cv2.resize(image, (cfg.data_shape[1], cfg.data_shape[0]))
+        after_reshape_shape = image.shape
         img = im_to_torch(image)
         img = color_normalize(img, cfg.pixel_means)
         img.unsqueeze_(0)
@@ -162,12 +181,12 @@ class PredictWithRotation:
             single_map = refine_output.data.cpu().numpy()[0]
             
             single_map = PredictWithRotation.revert_heatmap_rotation(
-                single_map, rotation)
+                single_map, rotation, original_shape, after_rotation_shape, after_reshape_shape)
 
         return single_map
 
     @staticmethod
-    def get_keypoints(single_map, input_image, rotation):
+    def get_keypoints(single_map, input_image, rotation, meta_details=None):
         keypoints = []
         for p in range(cfg.num_class): 
             max_conf = np.amax(single_map[p])
@@ -194,18 +213,27 @@ class PredictWithRotation:
                 y += delta * py / ln
             x = max(0, min(x, cfg.output_shape[1] - 1))
             y = max(0, min(y, cfg.output_shape[0] - 1))
-            resy = (cfg.data_shape[0] / cfg.output_shape[0]) * y + 2
-            resx = (cfg.data_shape[1] / cfg.output_shape[1]) * x + 2
-            resy = resy * input_image.shape[0] / cfg.data_shape[0]
-            resx = resx * input_image.shape[1] / cfg.data_shape[1]
-            resy = int(round(resy))
-            resx = int(round(resx))
+            if meta_details is None:
+                resy = (cfg.data_shape[0] / cfg.output_shape[0]) * y + 2
+                resx = (cfg.data_shape[1] / cfg.output_shape[1]) * x + 2
+                resy = resy * input_image.shape[0] / cfg.data_shape[0]
+                resx = resx * input_image.shape[1] / cfg.data_shape[1]
+                resy = int(round(resy))
+                resx = int(round(resx))
+            else:
+                resy = float(
+                    (4 * y + 2) / cfg.data_shape[0] * \
+                    (meta_details[3] - meta_details[1]) + meta_details[1])
+                resx = float(
+                    (4 * x + 2) / cfg.data_shape[1] * \
+                    (meta_details[2] - meta_details[0]) + meta_details[0])
+
             keypoints.append((p, rotation, resx, resy, max_conf))
 
         return keypoints
 
     @staticmethod
-    def predict(model, input_image, rotation_rate):
+    def predict(model, input_image, rotation_rate, meta_details=None):
         rotations_list = list(range(0, 360, rotation_rate))
         single_map_list = np.array([
             (PredictWithRotation.get_heatmaps(model, input_image, r), r)
@@ -214,11 +242,20 @@ class PredictWithRotation:
         keypoints_list = []
         for sm, r in single_map_list:
             keypoints_list += PredictWithRotation.get_keypoints(
-                sm, input_image, r)
+                sm, input_image, r, meta_details)
 
-        keypoints_selection_method = PredictWithRotation.keypoints_selection_v1
+        keypoints_list = np.array(keypoints_list)
+        keypoints_selection_method = PredictWithRotation.keypoints_selection_v0
         keypoints = keypoints_selection_method(keypoints_list)
 
+        return keypoints
+
+    @staticmethod
+    def keypoints_selection_v0(keypoints_list):
+        keypoints = [
+            [(int(x), int(y)) for (_, r, x, y, _) in keypoints_list if r == i]
+            for i in np.unique(keypoints_list[:,1])]
+        
         return keypoints
 
     @staticmethod
@@ -227,7 +264,6 @@ class PredictWithRotation:
         from a list of keypoints from different image rotations,
         does a weighted average of the keypoints, considering its confidence
         '''
-        keypoints_list = np.array(keypoints_list)
         keypoints = []
         
         grouped_keypoints_list = np.array([
@@ -251,21 +287,55 @@ class PredictWithRotation:
             keypoints.append((kx, ky))
 
         return keypoints
-
+    
+    @staticmethod
+    def keypoints_selection_v2(keypoints_list):
+        '''
+        from a list of keypoints from different image rotations,
+        select the rotation with the best keypoints confidence average
+        '''
+        grouped_keypoints_list = np.array([
+            [k for k in keypoints_list if k[1] == i]
+            for i in np.unique(keypoints_list[:,1])])
+        weight_sum_per_rotation = np.array(
+            [g[:,4].sum() for g in grouped_keypoints_list])
+        arg_best_rotation = weight_sum_per_rotation.argmax()
+        
+        keypoints = [
+            (int(kx), int(ky)) for (_, _, kx, ky, _)
+            in grouped_keypoints_list[arg_best_rotation]]
+        
+        return keypoints
+    
+    '''
+    @staticmethod
+    def keypoints_selection_v3(keypoints_list):
+        keypoint_list_list = np.array([
+            [k for k in keypoints_list if k[0] == i]
+            for i in np.unique(keypoints_list[:,0])])
+            
+        for kia, kib in keypoints_pairs:
+            keypoint_a_list, keypoint_b_list = keypoint_list_list[[kia, kib]]
+            
+            keypoint_ab_matrix = np.array([
+                [(ka, kb) for kb in keypoint_b_list]
+                for ka in keypoint_a_list])
+        
+        return keypoints_list
+    '''
+    
     @staticmethod
     def predict_val(model, inputs, meta, rotation_rate):
         input_image = inputs.cpu().numpy()[0]
+        ids = meta['imgID'].numpy()[0]
+        details = meta['augmentation_details'][0]
+
         keypoints = PredictWithRotation.predict(model, input_image,
-            rotation_rate)
+            rotation_rate, details)
         keypoints = [k for t in [(x, y, 1) for (x, y) in keypoints] for k in t]
         single_result = keypoints
 
         single_result_dict = {}
-
-        ids = meta['imgID'].numpy()[0]
-        det_scores = meta['det_scores'][0]
-        details = meta['augmentation_details'][0]
-
         single_result_dict['image_id'] = int(ids)
         single_result_dict['category_id'] = 1
         single_result_dict['keypoints'] = single_result
