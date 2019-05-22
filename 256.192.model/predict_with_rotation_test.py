@@ -19,6 +19,6 @@ canvas = canvas_with_skeleton(input_img, keypoints)
 plt.imshow(canvas)
 # cv2.imwrite('canvas.jpg', canvas)
 
-keypoints_list = PredictWithRotation.predict(model, input_img, 90)
+keypoints_list = PredictWithRotation.predict(model, input_img, 10)
 for i, r in enumerate(range(0, 360, 10)):
-    cv2.imwrite('media/canvas%s.jpg' % r, canvas_with_skeleton(img, keypoints_list[i]))
+    cv2.imwrite('media/canvas%s.jpg' % r, canvas_with_skeleton(input_img, keypoints_list[i]))

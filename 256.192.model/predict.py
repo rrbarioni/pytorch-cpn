@@ -158,9 +158,16 @@ class PredictWithRotation:
             [wII, w * sin_rot * (hII / hI)]
         ])
         M = cv2.getAffineTransform(pts1, pts2)
+        M = np.concatenate((M, [[0, 0, 1]]))
+        M_inv = np.linalg.inv(M)
+        M_inv = M_inv[:-1]
+        # dst = cv2.warpAffine(mat, M, (w, h))
         
-        dst = cv2.warpAffine(mat, M, (w, h))
-        
+        for (i, joint_mat) in enumerate(mat):
+            joint_mat = cv2.warpAffine(joint_mat, M_inv, (w, h))
+            joint_mat = cv2.resize(joint_mat, (wII, hII))
+            mat[i] = joint_mat
+            
         return mat
 
     @staticmethod
