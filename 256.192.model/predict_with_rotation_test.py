@@ -14,7 +14,7 @@ from canvas import canvas_with_skeleton
 model = load_model()
 
 input_img = cv2.imread('media/cr7_2.jpg')
-keypoints = PredictWithRotation.predict(model, input_img, 90)
+keypoints = PredictWithRotation.predict(model, input_img, 10)
 canvas = canvas_with_skeleton(input_img, keypoints)
 plt.imshow(canvas)
 # cv2.imwrite('canvas.jpg', canvas)

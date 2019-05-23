@@ -274,7 +274,7 @@ class PredictWithRotation:
                 sm, input_image, r, meta_details)
 
         keypoints_list = np.array(keypoints_list)
-        keypoints_selection_method = PredictWithRotation.keypoints_selection_v0
+        keypoints_selection_method = PredictWithRotation.keypoints_selection_v2
         keypoints = keypoints_selection_method(keypoints_list)
 
         return keypoints
@@ -339,20 +339,16 @@ class PredictWithRotation:
     '''
     @staticmethod
     def keypoints_selection_v3(keypoints_list):
-        keypoint_list_list = np.array([
-            [k for k in keypoints_list if k[0] == i]
-            for i in np.unique(keypoints_list[:,0])])
-            
-        for kia, kib in keypoints_pairs:
-            keypoint_a_list, keypoint_b_list = keypoint_list_list[[kia, kib]]
-            
-            keypoint_ab_matrix = np.array([
-                [(ka, kb) for kb in keypoint_b_list]
-                for ka in keypoint_a_list])
+        grouped_keypoints_list = np.array([
+            [k for k in keypoints_list if k[1] == i]
+            for i in np.unique(keypoints_list[:,1])])
+        weight_sum_per_rotation = np.array(
+            [g[:,4].sum() for g in grouped_keypoints_list])
+        best_args = weight_sum_per_rotation.argsort()[:5]
         
-        return keypoints_list
+        return keypoints
     '''
-    
+        
     @staticmethod
     def predict_val(model, inputs, meta, rotation_rate):
         input_image = inputs.cpu().numpy()[0]

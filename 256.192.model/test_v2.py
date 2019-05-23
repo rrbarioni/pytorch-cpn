@@ -34,9 +34,9 @@ def main(args):
     full_result = []
     for i, (inputs, meta) in tqdm(enumerate(test_loader)):
         # full_result += Predict.predict_val(model, inputs, meta)
-        full_result += PredictWithRotation.predict_val(model, inputs, meta, 90)
-        # if i == 200:
-        #     break
+        full_result += PredictWithRotation.predict_val(model, inputs, meta, 10)
+        if i == 100:
+            break
 
     result_path = args.result
     if not isdir(result_path):
