@@ -140,11 +140,9 @@ class PredictWithRotation:
         
     @staticmethod
     def revert_heatmap_rotation(mat, rotation, original_shape, 
-        after_rotation_shape, after_reshape_shape):
-        sin_rot = math.sin(math.radians(rotation))
+        after_rotation_shape):
         h, w, _ = original_shape
         hI, wI, _ = after_rotation_shape
-        # hII, wII, _ = after_reshape_shape
         _, hII, wII = mat.shape
         
         pts1 = np.float32([
@@ -152,18 +150,43 @@ class PredictWithRotation:
             [w, h],
             [w, 0]
         ])
-        pts2 = np.float32([
-            [wII / 2, hII / 2],
-            [(wI - (h * sin_rot)) * (wII / wI), hII],
-            [wII, w * sin_rot * (hII / hI)]
-        ])
+        if rotation <= 90:
+            sin_rot = math.sin(math.radians(rotation))
+            pts2 = np.float32([
+                [wI / 2, hI / 2],
+                [wI - (h * sin_rot), hI],
+                [wI, w * sin_rot]
+            ])
+        elif rotation <= 180:
+            cos_rot_minus_90 = math.cos(math.radians(rotation - 90))
+            pts2 = np.float32([
+                [wI / 2, hI / 2],
+                [0, w * cos_rot_minus_90],
+                [h * cos_rot_minus_90, hI]
+            ])
+        elif rotation <= 270:
+            sin_rot_minus_180 = math.sin(math.radians(rotation - 180))
+            cos_rot_minus_180 = math.cos(math.radians(rotation - 180))
+            pts2 = np.float32([
+                [wI / 2, hI / 2],
+                [h * sin_rot_minus_180, 0],
+                [0, h * cos_rot_minus_180]
+            ])
+        elif rotation < 360:
+            sin_rot_minus_270 = math.sin(math.radians(rotation - 270))
+            pts2 = np.float32([
+                [wI / 2, hI / 2],
+                [wI, h * sin_rot_minus_270],
+                [w * sin_rot_minus_270, 0]
+            ])
+    
         M = cv2.getAffineTransform(pts1, pts2)
         M = np.concatenate((M, [[0, 0, 1]]))
         M_inv = np.linalg.inv(M)
         M_inv = M_inv[:-1]
-        # dst = cv2.warpAffine(mat, M, (w, h))
         
         for (i, joint_mat) in enumerate(mat):
+            joint_mat = cv2.resize(joint_mat, (wI, hI))
             joint_mat = cv2.warpAffine(joint_mat, M_inv, (w, h))
             joint_mat = cv2.resize(joint_mat, (wII, hII))
             mat[i] = joint_mat
@@ -177,7 +200,6 @@ class PredictWithRotation:
         image = PredictWithRotation.apply_image_rotation(image, rotation)
         after_rotation_shape = image.shape
         image = cv2.resize(image, (cfg.data_shape[1], cfg.data_shape[0]))
-        after_reshape_shape = image.shape
         img = im_to_torch(image)
         img = color_normalize(img, cfg.pixel_means)
         img.unsqueeze_(0)
@@ -188,7 +210,7 @@ class PredictWithRotation:
             single_map = refine_output.data.cpu().numpy()[0]
             
             single_map = PredictWithRotation.revert_heatmap_rotation(
-                single_map, rotation, original_shape, after_rotation_shape, after_reshape_shape)
+                single_map, rotation, original_shape, after_rotation_shape)
 
         return single_map
 
